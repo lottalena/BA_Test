@@ -10,7 +10,7 @@ import Mathlib.Tactic
 structure EllipticCurve (F : Type*) [Field F] where
   a : F
   b : F
-  -- Δ = 4a³ + 27b² ≠ 0
+  -- Δ = 4a³ + 27b² ≠  0
   discriminant_nonzero : 4 * a^3 + 27 * b^2 ≠ 0
 
 
