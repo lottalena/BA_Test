@@ -1,32 +1,11 @@
 import Mathlib.Algebra.Group.Defs
-import Mathlib.Algebra.Group.Units.Defs
-import Mathlib.Algebra.Group.Units.Basic
 import Mathlib.Algebra.Field.Basic
-import Mathlib.Algebra.Field.ZMod
 import Mathlib.Data.Nat.Bits
-import Mathlib.Data.Nat.Prime.Basic
-import Mathlib.Data.Nat.Prime.Defs
 import Mathlib.Data.ZMod.Basic
-import Mathlib.Data.ZMod.Units
-import Mathlib.FieldTheory.Finiteness
+import Mathlib.Data.Nat.Prime.Basic
 
-import Mathlib.Tactic.NormNum
-import Mathlib.Algebra.Field.Defs
-import Mathlib.Data.ZMod.Defs
-import Mathlib.Tactic.Ring
-import Mathlib.FieldTheory.Finite.Basic
-import Mathlib.Tactic.FieldSimp
+import Mathlib.Tactic
 
-import Mathlib.AlgebraicGeometry.EllipticCurve.Jacobian.Basic
-import Mathlib.AlgebraicGeometry.EllipticCurve.Jacobian.Formula
-import Mathlib.AlgebraicGeometry.EllipticCurve.Jacobian.Point
-import Mathlib.AlgebraicGeometry.EllipticCurve.Affine.Basic
-import Mathlib.AlgebraicGeometry.EllipticCurve.Affine.Point
-import Mathlib.AlgebraicGeometry.EllipticCurve.Affine.Formula
-import Mathlib.AlgebraicGeometry.EllipticCurve.Weierstrass
-import Mathlib.AlgebraicGeometry.EllipticCurve.Projective.Basic
-import Mathlib.AlgebraicGeometry.EllipticCurve.Projective.Point
-import Mathlib.AlgebraicGeometry.EllipticCurve.Projective.Formula
 
 structure EllipticCurve (F : Type*) [Field F] where
   a : F
@@ -171,7 +150,7 @@ def from_option (opt : Option (F × F)) : EllipticPoint F :=
   | some (x, y) => point x y
 
 -- Die Additions-Funktion (Verbindet Kurve mit Punkten)
-def add (E : EllipticCurve F) (P Q : EllipticPoint F) : EllipticPoint F :=
+def add_or_double (E : EllipticCurve F) (P Q : EllipticPoint F) : EllipticPoint F :=
   match P, Q with
   | infinity, _ => Q  -- 0 + Q = Q
   | _, infinity => P  -- P + 0 = P
@@ -205,7 +184,7 @@ def Q : EllipticPoint (ZMod 5) := point 2 1
 -- FALL 1: Identität (P + O = P)
 -- ----------------------------------------------------------------
 -- Logik: Greift im 'match' Block von EllipticPoint.add
-#eval EllipticPoint.add E5 P EllipticPoint.infinity
+#eval EllipticPoint.add_or_double E5 P EllipticPoint.infinity
 -- ERWARTUNG: point 0 1
 
 -- ----------------------------------------------------------------
@@ -213,7 +192,7 @@ def Q : EllipticPoint (ZMod 5) := point 2 1
 -- ----------------------------------------------------------------
 -- Logik: x₁ = x₂, y₁ = -y₂ (hier 1 = -4). Greift im 'if y₁ = -y₂'.
 -- addieren von (0,1) und (0,4)
-#eval EllipticPoint.add E5 P (EllipticPoint.neg P)
+#eval EllipticPoint.add_or_double E5 P (EllipticPoint.neg P)
 -- ERWARTUNG: infinity
 
 -- ----------------------------------------------------------------
@@ -226,7 +205,7 @@ def E_Vert : EllipticCurve (ZMod 5) := {
 }
 def V : EllipticPoint (ZMod 5) := point 4 0
 
-#eval EllipticPoint.add E_Vert V V
+#eval EllipticPoint.add_or_double E_Vert V V
 -- ERWARTUNG: infinity
 
 -- ----------------------------------------------------------------
@@ -234,7 +213,7 @@ def V : EllipticPoint (ZMod 5) := point 4 0
 -- ----------------------------------------------------------------
 -- Logik: x₁ = x₂, aber y₁ ≠ -y₂ (y≠0). Greift im inneren 'else'.
 -- Tangentenformel wird genutzt.
-#eval EllipticPoint.add E5 P P
+#eval EllipticPoint.add_or_double E5 P P
 -- ERWARTUNG: point 4 2
 
 -- ----------------------------------------------------------------
@@ -243,7 +222,7 @@ def V : EllipticPoint (ZMod 5) := point 4 0
 -- Logik: x₁ ≠ x₂ (0 ≠ 4). Greift im äußeren 'else'.
 -- Sekantenformel wird genutzt.
 -- P(0,1) + 2P(4,2) = 3P(2,1)
-#eval EllipticPoint.add E5 P P_doubled
+#eval EllipticPoint.add_or_double E5 P P_doubled
 -- ERWARTUNG: point 2 1
 
 
@@ -262,7 +241,7 @@ variable {F : Type*} [Field F] [DecidableEq F]
 def naive_scalar_mult (E : EllipticCurve F) (k : ℕ) (P : EllipticPoint F) : EllipticPoint F :=
   match k with
   | 0 => infinity
-  | n + 1 => add E P (naive_scalar_mult E n P)
+  | n + 1 => add_or_double E P (naive_scalar_mult E n P)
 
 
 -- ----------------------------------------------------------------
@@ -280,9 +259,9 @@ def double_and_add (E : EllipticCurve F) (k : ℕ) (P : EllipticPoint F) : Ellip
       -- bs sind die restlichen Bits
 
       -- Wenn Bit=1: Addiere Basis zum Akkumulator. Sonst behalte Akkumulator.
-      let new_acc := if b then add E acc base else acc
+      let new_acc := if b then add_or_double E acc base else acc
       -- Verdopple die Basis für die nächste Runde (base = 2 * base)
-      let new_base := add E base base
+      let new_base := add_or_double E base base
       -- Rekursiver Aufruf mit restlichen Bits
       loop bs new_acc new_base
   -- Start der Rekursion:
@@ -337,10 +316,10 @@ variable {F : Type*} [Field F] [DecidableEq F]
 
 -- 1. Die Gruppen-Annahme
 class EllipticCurveGroup (E : EllipticCurve F) where
-  add_assoc : ∀ P Q R : EllipticPoint F, add E (add E P Q) R = add E P (add E Q R)
-  add_comm  : ∀ P Q : EllipticPoint F, add E P Q = add E Q P
-  add_zero  : ∀ P : EllipticPoint F, add E P infinity = P
-  zero_add  : ∀ P : EllipticPoint F, add E infinity P = P
+  add_assoc : ∀ P Q R : EllipticPoint F, add_or_double E (add_or_double E P Q) R = add_or_double E P (add_or_double E Q R)
+  add_comm  : ∀ P Q : EllipticPoint F, add_or_double E P Q = add_or_double E Q P
+  add_zero  : ∀ P : EllipticPoint F, add_or_double E P infinity = P
+  zero_add  : ∀ P : EllipticPoint F, add_or_double E infinity P = P
 
 variable {E : EllipticCurve F} [GroupE : EllipticCurveGroup E]
 
@@ -348,7 +327,7 @@ variable {E : EllipticCurve F} [GroupE : EllipticCurveGroup E]
 
 -- Lemma: n*P + m*P = (n+m)*P
 lemma naive_add (n m : ℕ) (P : EllipticPoint F) :
-  add E (naive_scalar_mult E n P) (naive_scalar_mult E m P) = naive_scalar_mult E (n + m) P :=
+  add_or_double E (naive_scalar_mult E n P) (naive_scalar_mult E m P) = naive_scalar_mult E (n + m) P :=
 by
   induction n with
   | zero =>
@@ -364,7 +343,7 @@ by
 
 -- Lemma: 2 * (n*P) = n * (2*P)
 lemma naive_mul_two (n : ℕ) (P : EllipticPoint F) :
-  naive_scalar_mult E (2 * n) P = naive_scalar_mult E n (add E P P) :=
+  naive_scalar_mult E (2 * n) P = naive_scalar_mult E n (add_or_double E P P) :=
 by
   induction n with
   | zero => simp [naive_scalar_mult]
@@ -422,9 +401,10 @@ lemma fromBits_bits_eq_id (n : ℕ) : fromBits (Nat.bits n) = n := by
 
 -- 3. Hauptbeweis (Loop Invariante)
 
+
 lemma loop_correct (bits : List Bool) (acc base : EllipticPoint F) :
   double_and_add.loop E bits acc base =
-  add E acc (naive_scalar_mult E (fromBits bits) base) :=
+  add_or_double E acc (naive_scalar_mult E (fromBits bits) base) :=
 by
   induction bits generalizing acc base with
   | nil =>

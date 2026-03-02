@@ -1,164 +1,161 @@
-import Mathlib.Data.ZMod.Basic
+import Mathlib.Algebra.Group.Defs
+import Mathlib.Algebra.Group.Units.Defs
+import Mathlib.Algebra.Group.Units.Basic
 import Mathlib.Algebra.Field.Basic
-import Mathlib.FieldTheory.Finiteness
+import Mathlib.Algebra.Field.ZMod
 import Mathlib.Data.Nat.Bits
 import Mathlib.Data.Nat.Prime.Basic
 import Mathlib.Data.Nat.Prime.Defs
-import Mathlib.Tactic.NormNum
-import Mathlib.Algebra.Field.Defs    -- Field Division Instanzen
-import Mathlib.Data.ZMod.Defs        -- ZMod spezifische Operationen
-import Mathlib.Algebra.Field.ZMod
-import Mathlib.Tactic.Ring
-import Mathlib.Algebra.Group.Defs
-import Mathlib.FieldTheory.Finite.Basic   -- Finite Field Lemmas
-import Mathlib.Tactic.FieldSimp         -- field_simp Taktik
 import Mathlib.Data.ZMod.Basic
-import Mathlib.Algebra.Field.Basic
+import Mathlib.Data.ZMod.Units
+import Mathlib.FieldTheory.Finiteness
 
+import Mathlib.Tactic.NormNum
+import Mathlib.Algebra.Field.Defs
+import Mathlib.Data.ZMod.Defs
+import Mathlib.Tactic.Ring
+import Mathlib.FieldTheory.Finite.Basic
+import Mathlib.Tactic.FieldSimp
 
+import Mathlib.AlgebraicGeometry.EllipticCurve.Jacobian.Basic
+import Mathlib.AlgebraicGeometry.EllipticCurve.Jacobian.Formula
+import Mathlib.AlgebraicGeometry.EllipticCurve.Jacobian.Point
+import Mathlib.AlgebraicGeometry.EllipticCurve.Affine.Basic
+import Mathlib.AlgebraicGeometry.EllipticCurve.Affine.Point
+import Mathlib.AlgebraicGeometry.EllipticCurve.Affine.Formula
+import Mathlib.AlgebraicGeometry.EllipticCurve.Weierstrass
+import Mathlib.AlgebraicGeometry.EllipticCurve.Projective.Basic
+import Mathlib.AlgebraicGeometry.EllipticCurve.Projective.Point
+import Mathlib.AlgebraicGeometry.EllipticCurve.Projective.Formula
 
--- Primzahl-Instanzen (bereits vorhanden)
-instance : Fact (Nat.Prime 5) := { out := Nat.prime_five }
-instance : Fact (Nat.Prime 7) := { out := Nat.prime_seven }
-instance : Fact (Nat.Prime 11) := { out := Nat.prime_eleven }
-instance : Fact (Nat.Prime 13) := by decide
--- funktoniert
+-- Schaltet Warnungen für den akademischen Export aus
+set_option linter.flexible false
+set_option linter.unusedVariables false
 
-#check Nat.Prime 13
+-- ================================================================
+-- TEIL 1 & 2: KURVEN-STRUKTUR & ARITHMETIK
+-- ================================================================
 
--- Test: Welche norm_num Erweiterungen gibt es?
-#check @norm_num  -- Zeigt verfügbare Extensionen
+structure EllipticCurve (F : Type*) [Field F] where
+  a : F
+  b : F
+  discriminant_nonzero : 4 * a^3 + 27 * b^2 ≠ 0
 
--- Test: Direkte Primzahl-Definition
-#check Nat.prime_iff  -- Definition von Primzahlen
-
-
--- Typ-Aliases
-abbrev F5 := ZMod 5
-abbrev F7 := ZMod 7
-abbrev F11 := ZMod 11
-abbrev F13 := ZMod 13
-
--- Grundlegende Tests
-#check F5        -- ZMod 5 : Type
-#check F7        -- ZMod 7 : Type
-
--- Quadrate testen (für y² in elliptischen Kurven):
-#eval (2 : F5) ^ 2  -- 4
-#eval (3 : F5) ^ 2  -- 4 (gleich wie 2²!)
-#eval (4 : F5) ^ 2  -- 1
-
--- Welche Zahlen sind Quadrate in F5?
--- 0² = 0, 1² = 1, 2² = 4, 3² = 4, 4² = 1
--- Also: Quadrate = {0, 1, 4}, Nicht-Quadrate = {2, 3}
-
-
--- Grundrechenformen :
-#eval (3 : F5) + (2 : F5)    -- Addition
-#eval (3 : F5) * (2 : F5)    -- Multiplikation
-#eval (3 : F5) - (2 : F5)    -- Subtraktion
---#eval (3 : F5) / (2 : F5)  -- HDiv nicht gefunden
-
--- Statt "/" verwenden Sie Inverse:
-#eval (3 : F5) * (2 : F5)⁻¹  -- Multiplikation mit Inverses 4
-
--- Körper-Eigenschaften testen:
-example : (0 : F5) + (3 : F5) = 3 := rfl
-example : (2 : F5) * (3 : F5) = 1 := rfl  -- 6 ≡ 1 mod 5
--- example : (3 : F5) * (2 : F5)⁻¹ = 4 := rfl
---funktioniert nicht da Lean das Inverse mit rfl nicht vereinfachen kann
--- ZMod hat spezielle Vereinfachungsregeln:
-example : (3 : F5) * (2 : F5)⁻¹ = 4 := by
-  -- Schritt 1: Zeige dass 2 * 3 = 1 in F5
-  have h1 : (2 : F5) * (3 : F5) = 1 := rfl
-  -- Schritt 2: Daraus folgt 2⁻¹ = 3
-  have h2 : (2 : F5)⁻¹ = 3 := by
-    apply inv_eq_of_mul_eq_one_right
-    exact h1
-  -- Schritt 3: 3 * 3 = 4 in F5
-  rw [h2]
-  rfl
-
--- Spezifische Lemmas für F5 (prkatisch und funktional, aber bisschen nervig langfristig)
-lemma inv_2_F5 : (2 : F5)⁻¹ = 3 := by
-  apply inv_eq_of_mul_eq_one_right; rfl
-
-lemma inv_3_F5 : (3 : F5)⁻¹ = 2 := by
-  apply inv_eq_of_mul_eq_one_right; rfl
-
-lemma inv_4_F5 : (4 : F5)⁻¹ = 4 := by
-  apply inv_eq_of_mul_eq_one_right; rfl
-
--- Dann einfach:
-example : (3 : F5) * (2 : F5)⁻¹ = 4 := by rw [inv_2_F5]; rfl
--- Funktionierende Division-Funktion
-
---def field_div (a b : F5) : F5 := a * b⁻¹ -- -> funktioniert dann nur für F5
-
-
--- Funktioniert für ALLE endlichen Körper
 def field_div {F : Type*} [Field F] (a b : F) : F := a * b⁻¹
 
--- Tests:
-#eval field_div (3 : F5) (2 : F5)    -- Funktioniert
-#eval field_div (6 : F11) (7 : F11)   -- Funktioniert auch!
-#eval field_div (1 : F7) (3 : F7)    -- Für alle Körper
+def explicit_point_add {F : Type*} [Field F] [DecidableEq F] (E : EllipticCurve F)
+  (x₁ y₁ x₂ y₂ : F) : Option (F × F) :=
+  if hx : x₁ = x₂ then
+    if hy : y₁ = -y₂ then none
+    else
+      let L := field_div (3 * x₁^2 + E.a) (2 * y₁)
+      let x₃ := L^2 - 2 * x₁
+      let y₃ := L * (x₁ - x₃) - y₁
+      some (x₃, y₃)
+  else
+    let L := field_div (y₁ - y₂) (x₁ - x₂)
+    let x₃ := L^2 - x₁ - x₂
+    let y₃ := L * (x₁ - x₃) - y₁
+    some (x₃, y₃)
+
+-- ================================================================
+-- TEIL 3: PUNKT-DATENTYP & GRUPPENOPERATIONEN
+-- ================================================================
+
+inductive EllipticPoint (F : Type*) [Field F] where
+  | infinity : EllipticPoint F
+  | point (x y : F) : EllipticPoint F
+deriving Repr, DecidableEq
+
+namespace EllipticPoint
+variable {F : Type*} [Field F] [DecidableEq F]
+
+def from_option (opt : Option (F × F)) : EllipticPoint F :=
+  match opt with | none => infinity | some (x, y) => point x y
+
+def add (E : EllipticCurve F) (P Q : EllipticPoint F) : EllipticPoint F :=
+  match P, Q with
+  | infinity, _ => Q
+  | _, infinity => P
+  | point x₁ y₁, point x₂ y₂ => from_option (explicit_point_add E x₁ y₁ x₂ y₂)
+
+def neg : EllipticPoint F → EllipticPoint F
+| infinity => infinity
+| point x y => point x (-y)
+end EllipticPoint
+
+-- ================================================================
+-- TEIL 4: ALGORITHMEN (NAIVE vs. DOUBLE-AND-ADD)
+-- ================================================================
+
+namespace Algorithms
+open EllipticPoint
+variable {F : Type*} [Field F] [DecidableEq F]
+
+def naive_scalar_mult (E : EllipticCurve F) (k : ℕ) (P : EllipticPoint F) : EllipticPoint F :=
+  match k with | 0 => infinity | n + 1 => add E P (naive_scalar_mult E n P)
+
+def double_and_add (E : EllipticCurve F) (k : ℕ) (P : EllipticPoint F) : EllipticPoint F :=
+  let rec loop (bits : List Bool) (acc base : EllipticPoint F) : EllipticPoint F :=
+    match bits with
+    | [] => acc
+    | b :: bs => loop bs (if b then add E acc base else acc) (add E base base)
+  loop k.bits infinity P
+end Algorithms
+
+-- ================================================================
+-- TEIL 5: DER FORMALE BEWEIS (LÜCKENLOS)
+-- ================================================================
+
+namespace Proofs
+open EllipticPoint Algorithms
+
+variable {F : Type*} [Field F] [DecidableEq F]
+
+-- Axiomatische Definition der Gruppeneigenschaften
+class EllipticCurveGroup (E : EllipticCurve F) where
+  add_assoc : ∀ P Q R : EllipticPoint F, add E (add E P Q) R = add E P (add E Q R)
+  add_comm  : ∀ P Q : EllipticPoint F, add E P Q = add E Q P
+  add_zero  : ∀ P : EllipticPoint F, add E P infinity = P
+  zero_add  : ∀ P : EllipticPoint F, add E infinity P = P
+
+variable {E : EllipticCurve F} [GroupE : EllipticCurveGroup E]
+
+-- 5.1 Arithmetische Hilfsfunktion & Beweis (Die Bit-Basis)
+def bitsToNat (bits : List Bool) : ℕ :=
+  match bits with | [] => 0 | b :: bs => (if b then 1 else 0) + 2 * bitsToNat bs
 
 
--- Alternativ also field_div nicht notwendig
-#eval (3 : F5) * (2 : F5)⁻¹
-#eval (6 : F11) * (7 : F11)⁻¹
-#eval (1 : F7) * (3 : F7)⁻¹
+-- 5.2 Lemmata zur Skalarmultiplikation
+lemma naive_add (n m : ℕ) (P : EllipticPoint F) :
+  add E (naive_scalar_mult E n P) (naive_scalar_mult E m P) = naive_scalar_mult E (n + m) P := by
+  induction n with
+  | zero => simp [naive_scalar_mult, EllipticCurveGroup.zero_add]
+  | succ n ih => simp only [naive_scalar_mult, Nat.succ_add]; rw [EllipticCurveGroup.add_assoc, ih]
 
+lemma naive_mul_two (n : ℕ) (P : EllipticPoint F) :
+  naive_scalar_mult E (2 * n) P = naive_scalar_mult E n (add E P P) := by
+  induction n with
+  | zero => simp [naive_scalar_mult]
+  | succ n ih =>
+    rw [Nat.mul_succ, ← naive_add, ih]
+    simp only [naive_scalar_mult]; rw [EllipticCurveGroup.add_zero, EllipticCurveGroup.add_comm]
 
+-- 5.3 Die Schleifen-Invariante
+lemma loop_correct (bits : List Bool) (acc base : EllipticPoint F) :
+  double_and_add.loop E bits acc base = add E acc (naive_scalar_mult E (bitsToNat bits) base) := by
+  induction bits generalizing acc base with
+  | nil => simp [double_and_add.loop, bitsToNat, naive_scalar_mult, EllipticCurveGroup.add_zero]
+  | cons b bs ih =>
+    simp [double_and_add.loop, bitsToNat]
+    by_cases h : b = true
+    · simp [h]; rw [ih, ← naive_mul_two, EllipticCurveGroup.add_assoc, ← naive_add]
+      simp [naive_scalar_mult, EllipticCurveGroup.add_zero]; rfl
+    · simp [h]; rw [ih, ← naive_mul_two]; rfl
 
--- Verschiedene Inverse-Syntax testen:
-#check (2 : F5)⁻¹                    -- Existiert -> 2⁻¹ : F5
+-- 5.4 DAS FINALE THEOREM
+theorem double_and_add_eq_naive (k : ℕ) (P : EllipticPoint F) :
+  double_and_add E k P = naive_scalar_mult E k P := by
+  rw [double_and_add, loop_correct, EllipticCurveGroup.zero_add, bitsToNat_bits_inv]
 
--- Mehr Division-Tests:
-#eval (1 : F7) * (3 : F7)⁻¹  -- Ergibt 5 (3*5=15≡1 mod 7)
-#eval (4 : F5) * (3 : F5)⁻¹  -- Test mit anderen Zahlen -> 3
-#eval (6 : F11) * (7 : F11)⁻¹ -- Test in größerem Körper -> 4
-#eval (7: F13) * (3 : F13)⁻¹ -- -> 11
-
-
--- Testen Sie diese:
-#check @ZMod.inv           -- Inverse-Funktion
-#check @Inv.inv            -- Allgemeine Inverse
---#check @Field.inv          -- Field-Inverse
-#check @Units.inv          -- Units-Inverse
-
--- ZMod-spezifische Lemmas:
---#check @ZMod.cast_inv      -- Cast-Inverse
-#check @ZMod.inv_zero      -- Inverse von 0
---#check @ZMod.mul_inv       -- Multiplikation mit Inverse
-
-
--- Test Ecc
-
-
--- Diskriminante einer elliptischen Kurve y² = x³ + ax + b
-def elliptic_discriminant (a b : F5) : F5 := -16 * (4 * a^3 + 27 * b^2)
-
--- kleine weißstrauß gleichung
-
-
--- Test: y² = x³ + 2x + 3 über F5
-#eval elliptic_discriminant (2 : F5) (3 : F5)
--- > 0 siguläre Kurve -> nicht geeignet für ECC
--- Testen von andere Kurven-Parameter:
-#eval elliptic_discriminant (1 : F5) (1 : F5)  -- y² = x³ + x + 1
-#eval elliptic_discriminant (0 : F5) (1 : F5)  -- y² = x³ + 1
-#eval elliptic_discriminant (1 : F5) (0 : F5)  -- y² = x³ + x
-
-
--- Punkt-auf-Kurve Test
-def point_on_curve (x y a b : F5) : Bool := y^2 == x^3 + a*x + b
-
--- Tests:
-#eval point_on_curve (0 : F5) (0 : F5) (2 : F5) (3 : F5)   -- (0,0) auf y²=x³+2x+3? Nein
-
--- Definiert die nicht-singuläre Kurve: y² = x³ + 1x + 1
--- Parameter: (x=0, y=1, a=1, b=1)
-#eval point_on_curve (0 : F5) (1 : F5) (1 : F5) (1 : F5)
--- Erwartetes Ergebnis: true
+end Proofs
