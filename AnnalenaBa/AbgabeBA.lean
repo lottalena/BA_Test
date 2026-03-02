@@ -101,12 +101,12 @@ Hinweis: `2 ≠ 0` ist in Charakteristik 2 falsch, daher als Voraussetzung.
 lemma denom_ne_zero_double {y : F} (h2 : ((2 : F) ≠ 0)) (hy : y ≠ 0) : (2 * y) ≠ 0 := by
   exact mul_ne_zero h2 hy
 
-/-- Formel-Identität (Addition): deine `L`-Definition ist die Sekantensteigung. -/
+/-- Formel-Identität (Addition): die `L`-Definition ist die Sekantensteigung. -/
 lemma slope_add_formula (y₁ y₂ x₁ x₂ : F) :
     field_div (y₁ - y₂) (x₁ - x₂) = (y₁ - y₂) / (x₁ - x₂) := by
   simp [field_div, div_eq_mul_inv]
 
-/-- Formel-Identität (Verdopplung): deine `L`-Definition ist die Tangentensteigung. -/
+/-- Formel-Identität (Verdopplung): die `L`-Definition ist die Tangentensteigung. -/
 lemma slope_double_formula (a x₁ y₁ : F) :
     field_div (3 * x₁^2 + a) (2 * y₁) = (3 * x₁^2 + a) / (2 * y₁) := by
   simp [field_div, div_eq_mul_inv]
@@ -450,4 +450,3 @@ by
   rw [fromBits_bits_eq_id]         --  Hilfsfunktion zurück zu k
 
 end Proofs
-
