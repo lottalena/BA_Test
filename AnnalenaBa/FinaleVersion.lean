@@ -26,7 +26,7 @@ instance : Fact (Nat.Prime 13) := ⟨by decide⟩
 instance : Fact (Nat.Prime 17) := ⟨by decide⟩
 
 
--- E₅: y² = x³ + x + 1 auf ZMod 5
+-- E₅: y² = x³ + x + 1 auf  ZMod 5
 -- Diskriminante: 4*1³ + 27*1² = 4 + 27 = 31 ≡ 1 (mod 5) ≠ 0. Gültig!
 def E5 : EllipticCurve (ZMod 5) := {
   a := 1
